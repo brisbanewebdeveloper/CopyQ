@@ -237,6 +237,7 @@ sudo apt install \
   cmake \
   extra-cmake-modules \
   git \
+  kinit-dev \
   libqt5svg5 \
   libqt5svg5-dev \
   libqt5waylandclient5-dev \
@@ -244,6 +245,16 @@ sudo apt install \
   libwayland-dev \
   libxfixes-dev \
   libxtst-dev \
+  libkf5config-dev \
+  libkdecorations2-dev \
+  libkf5guiaddons-dev \
+  libkf5configwidgets-dev \
+  libkf5windowsystem-dev \
+  libkf5coreaddons-dev \
+  libkf5crash-dev \
+  libkf5globalaccel-dev \
+  libkf5kio-dev \
+  libkf5notifications-dev \
   qtbase5-private-dev \
   qtdeclarative5-dev \
   qttools5-dev \

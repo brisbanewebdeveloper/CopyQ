@@ -22,7 +22,10 @@ cmake_install.cmake
 /Makefile
 
 # Generated Qt files
+/src/copyq_autogen/
+/src/platform/x11/**/*_autogen/
 /plugins/**/*.dir/
+/plugins/**/*_autogen/
 /src/copyqcon.dir/
 /src/copyq.dir/
 /src/copyq_*.qm
@@ -30,16 +33,26 @@ cmake_install.cmake
 /src/qrc_copyq.cxx
 /src/translations.qrc
 /src/qrc_translations.cxx
+/src/common/version.h
+
+/src/platform/x11/systemclipboard/Makefile
+/src/platform/x11/systemclipboard/libsystemclipboard.a
+/src/platform/x11/systemclipboard/qwayland-wlr-data-control-unstable-v1.cpp
+/src/platform/x11/systemclipboard/qwayland-wlr-data-control-unstable-v1.h
+/src/platform/x11/systemclipboard/wayland-wlr-data-control-unstable-v1-client-protocol.h
+/src/platform/x11/systemclipboard/wayland-wlr-data-control-unstable-v1-protocol.c
 
 moc_*
 ui_*
 *.depends
+*.so
 *.o
 *.dylib
 *.moc
 **/qrc_*.cpp
 /.qmake.cache
 /copyq.app
+/copyq
 copyq.pro.user*
 CMakeLists.txt.user*
 .DS_Store
@@ -48,6 +61,7 @@ CMakeLists.txt.user*
 *.dmg
 /build
 *.qm
+/shared/com.github.hluk.copyq.desktop
 
 # Generated Sphinx files
 /docs/_build
@@ -58,3 +72,4 @@ CMakeLists.txt.user*
 
 # Visual Studio Code
 /.vscode
+/.history
