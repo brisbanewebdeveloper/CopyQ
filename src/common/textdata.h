@@ -52,4 +52,7 @@ QVariantMap createDataMap(const QString &format, const QByteArray &value);
 
 QVariantMap createDataMap(const QString &format, const QString &value);
 
+/// Returns text without accents/diacritics.
+QString accentsRemoved(const QString &text);
+
 #endif // TEXTDATA_H

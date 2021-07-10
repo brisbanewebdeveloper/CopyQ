@@ -25,6 +25,9 @@
 #include <QString>
 #include <Qt>
 
+#include <algorithm>
+#include <iterator>
+
 namespace {
 
 QString escapeHtmlSpaces(const QString &str)
@@ -118,4 +121,18 @@ QVariantMap createDataMap(const QString &format, const QByteArray &value)
 QVariantMap createDataMap(const QString &format, const QString &value)
 {
     return createDataMap( format, value.toUtf8() );
+}
+
+QString accentsRemoved(const QString &text)
+{
+    if (text.isEmpty())
+        return {};
+
+    QString result = text.normalized(QString::NormalizationForm_D);
+    const auto newEnd = std::remove_if(
+        std::begin(result), std::end(result),
+        [](QChar c){ return c.category() == QChar::Mark_NonSpacing; });
+    const auto newSize = std::distance(std::begin(result), newEnd);
+    result.resize(newSize);
+    return result;
 }
