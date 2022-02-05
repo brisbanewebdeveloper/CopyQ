@@ -46,6 +46,7 @@ class ConfigurationManager;
 class Notification;
 class QAction;
 class QMimeData;
+class SystemTrayIcon;
 class Tabs;
 class Theme;
 class TrayMenu;
@@ -55,6 +56,12 @@ struct NotificationButton;
 
 Q_DECLARE_METATYPE(QPersistentModelIndex)
 Q_DECLARE_METATYPE(QList<QPersistentModelIndex>)
+
+#if QT_VERSION >= QT_VERSION_CHECK(6,0,0)
+using NativeEventResult = qintptr;
+#else
+using NativeEventResult = long;
+#endif
 
 namespace Ui
 {
@@ -86,6 +93,7 @@ struct MainWindowOptions {
     bool trayCurrentTab = false;
     QString trayTabName;
     int trayItems = 5;
+    bool nativeTrayMenu = false;
     bool trayImages = true;
     bool trayMenuOpenOnLeftClick = false;
     int transparency = 0;
@@ -446,7 +454,8 @@ protected:
 
     bool focusNextPrevChild(bool next) override;
 
-    bool nativeEvent(const QByteArray &eventType, void *message, long *result) override;
+    bool nativeEvent(
+        const QByteArray &eventType, void *message, NativeEventResult *result) override;
 
 private:
     ClipboardBrowserPlaceholder *getPlaceholderForMenu();
@@ -478,6 +487,7 @@ private:
     void updateContextMenuTimeout();
 
     void updateTrayMenuItemsTimeout();
+    void initTrayMenuItems();
 
     void updateItemPreviewAfterMs(int ms);
 
@@ -519,7 +529,7 @@ private:
     void updateEnabledCommands();
 
     void updateCommands(QVector<Command> allCommands, bool forceSave);
-    bool addPluginCommands(QVector<Command> *allCommands);
+    bool syncInternalCommands(QVector<Command> *allCommands);
 
     void disableHideWindowOnUnfocus();
     void enableHideWindowOnUnfocus();
@@ -590,18 +600,18 @@ private:
     bool closeMinimizes() const;
 
     template <typename SlotReturnType>
-    QAction *createAction(int id, MainWindowActionSlot<SlotReturnType> slot, QMenu *menu, QWidget *parent = nullptr);
+    QAction *createAction(Actions::Id id, MainWindowActionSlot<SlotReturnType> slot, QMenu *menu, QWidget *parent = nullptr);
 
-    QAction *addTrayAction(int id);
+    QAction *addTrayAction(Actions::Id id);
 
     void updateTabIcon(const QString &newName, const QString &oldName);
 
     template <typename Receiver, typename ReturnType>
-    QAction *addItemAction(int id, Receiver *receiver, ReturnType (Receiver::* slot)());
+    QAction *addItemAction(Actions::Id id, Receiver *receiver, ReturnType (Receiver::* slot)());
 
     QVector<Command> commandsForMenu(const QVariantMap &data, const QString &tabName, const QVector<Command> &allCommands);
     void addCommandsToItemMenu(ClipboardBrowser *c);
-    void addCommandsToTrayMenu(const QVariantMap &clipboardData);
+    void addCommandsToTrayMenu(const QVariantMap &clipboardData, QList<QAction*> *actions);
     void addMenuMatchCommand(MenuMatchCommands *menuMatchCommands, const QString &matchCommand, QAction *act);
     void runMenuCommandFilters(MenuMatchCommands *menuMatchCommands, QVariantMap &data);
     void interruptMenuCommandFilters(MenuMatchCommands *menuMatchCommands);
@@ -623,7 +633,7 @@ private:
 
     void updateActionShortcuts();
 
-    QAction *actionForMenuItem(int id, QWidget *parent, Qt::ShortcutContext context);
+    QAction *actionForMenuItem(Actions::Id id, QWidget *parent, Qt::ShortcutContext context);
 
     void addMenuItems(TrayMenu *menu, ClipboardBrowserPlaceholder *placeholder, int maxItemCount, const QString &searchText);
     void activateMenuItem(ClipboardBrowserPlaceholder *placeholder, const QVariantMap &data, bool omitPaste);
@@ -649,7 +659,7 @@ private:
     QMenu *m_menuItem;
     TrayMenu *m_trayMenu;
 
-    QSystemTrayIcon *m_tray;
+    SystemTrayIcon *m_tray;
 
     ToolBar *m_toolBar;
 

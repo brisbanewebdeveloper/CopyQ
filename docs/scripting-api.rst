@@ -7,7 +7,10 @@ CopyQ provides scripting capabilities to automatically handle clipboard
 changes, organize items, change settings and much more.
 
 Supported language features and base function can be found at `ECMAScript
-Reference <http://doc.qt.io/qt-5/ecmascript.html>`__.
+Reference <http://doc.qt.io/qt-5/ecmascript.html>`__. The language is mostly
+equivalent to modern JavaScript. Some features may be missing but feel free to
+use for example `JavaScript reference on MDN
+<https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/>`__.
 
 CopyQ-specific features described in this document:
 
@@ -1182,9 +1185,9 @@ unlike in GUI, where row numbers start from 1 by default.
 
    Returns text representation of current date and time.
 
-   See
-   `QDateTime::toString() <http://doc.qt.io/qt-5/qdatetime.html#toString>`__
-   for details on formatting date and time.
+   See `Date QML Type
+   <https://doc.qt.io/qt-5/qml-qtqml-date.html#format-strings>`__ for details
+   on formatting date and time.
 
    :returns: Current date and time as string.
    :rtype: string
@@ -1781,6 +1784,16 @@ Types
    .. js:method:: deselectSelection(ItemSelection)
 
        Deselect items in other selection.
+
+       :returns: self
+       :rtype: ItemSelection
+
+   .. js:method:: current()
+
+       Deselects all and selects only the items which were selected when the
+       command was triggered.
+
+       See `Selected Items`_.
 
        :returns: self
        :rtype: ItemSelection

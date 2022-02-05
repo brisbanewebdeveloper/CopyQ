@@ -181,15 +181,18 @@ void addTagCommands(const QString &tagName, const QString &match, QVector<Comman
 
     const QString name = !tagName.isEmpty() ? tagName : match;
     const QString tagString = toScriptString(name);
+    const QString quotedTag = quoteString(name);
 
     c = dummyTagCommand();
-    c.name = ItemTagsLoader::tr("Tag as %1").arg(quoteString(name));
+    c.internalId = QStringLiteral("copyq_tags_tag:") + name;
+    c.name = ItemTagsLoader::tr("Tag as %1").arg(quotedTag);
     c.matchCmd = "copyq: plugins.itemtags.hasTag(" + tagString + ") && fail()";
     c.cmd = "copyq: plugins.itemtags.tag(" + tagString + ")";
     commands->append(c);
 
     c = dummyTagCommand();
-    c.name = ItemTagsLoader::tr("Remove tag %1").arg(quoteString(name));
+    c.internalId = QStringLiteral("copyq_tags_untag:") + name;
+    c.name = ItemTagsLoader::tr("Remove tag %1").arg(quotedTag);
     c.matchCmd = "copyq: plugins.itemtags.hasTag(" + tagString + ") || fail()";
     c.cmd = "copyq: plugins.itemtags.untag(" + tagString + ")";
     commands->append(c);
@@ -364,14 +367,14 @@ ItemTags::ItemTags(ItemWidget *childItem, const Tags &tags)
     , m_tagWidget(new QWidget(childItem->widget()->parentWidget()))
 {
     QBoxLayout *tagLayout = new QHBoxLayout(m_tagWidget);
-    tagLayout->setMargin(0);
+    tagLayout->setContentsMargins({});
     addTagButtons(tagLayout, tags);
 
     childItem->widget()->setObjectName("item_child");
     childItem->widget()->setParent(this);
 
     QBoxLayout *layout = new QVBoxLayout(this);
-    layout->setMargin(0);
+    layout->setContentsMargins({});
     layout->setSpacing(0);
 
     layout->addWidget(m_tagWidget, 0);
@@ -647,31 +650,23 @@ QStringList ItemTagsLoader::formatsToSave() const
     return QStringList(mimeTags);
 }
 
-QVariantMap ItemTagsLoader::applySettings()
+void ItemTagsLoader::applySettings(QSettings &settings)
 {
-    m_tags.clear();
-
     QStringList tags;
 
     for (int row = 0; row < ui->tableWidget->rowCount(); ++row) {
         const Tag tag = tagFromTable(row);
-        if (isTagValid(tag)) {
+        if (isTagValid(tag))
             tags.append(serializeTag(tag));
-            m_tags.append(tag);
-        }
     }
 
-    m_settings.insert(configTags, tags);
-
-    return m_settings;
+    settings.setValue(configTags, tags);
 }
 
-void ItemTagsLoader::loadSettings(const QVariantMap &settings)
+void ItemTagsLoader::loadSettings(const QSettings &settings)
 {
-    m_settings = settings;
-
     m_tags.clear();
-    for (const auto &tagField : m_settings.value(configTags).toStringList()) {
+    for (const auto &tagField : settings.value(configTags).toStringList()) {
         Tag tag = deserializeTag(tagField);
         if (isTagValid(tag))
             m_tags.append(tag);
@@ -773,17 +768,20 @@ QVector<Command> ItemTagsLoader::commands() const
     Command c;
 
     c = dummyTagCommand();
+    c.internalId = QStringLiteral("copyq_tags_tag");
     c.name = addTagText();
     c.cmd = "copyq: plugins.itemtags.tag()";
     commands.append(c);
 
     c = dummyTagCommand();
+    c.internalId = QStringLiteral("copyq_tags_untag");
     c.input = mimeTags;
     c.name = removeTagText();
     c.cmd = "copyq: plugins.itemtags.untag()";
     commands.append(c);
 
     c = dummyTagCommand();
+    c.internalId = QStringLiteral("copyq_tags_clear");
     c.input = mimeTags;
     c.name = tr("Clear all tags");
     c.cmd = "copyq: plugins.itemtags.clearTags()";

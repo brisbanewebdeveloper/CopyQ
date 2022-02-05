@@ -192,6 +192,8 @@ bool testStderr(const QByteArray &stderrData, TestInterface::ReadStderrFlag flag
         plain("ERROR: QtCritical: QWindowsPipeWriter: asynchronous write failed. (The pipe has been ended.)"),
 
         plain("[kf.notifications] QtWarning: Received a response for an unknown notification."),
+        // KStatusNotifierItem
+        plain("[kf.windowsystem] QtWarning: Could not find any platform plugin"),
 
         regex("QtWarning: QTemporaryDir: Unable to remove .* most likely due to the presence of read-only files."),
 
@@ -528,7 +530,7 @@ public:
     {
         if (m_server) {
             QCoreApplication::processEvents();
-            QByteArray output = readLogFile(maxReadLogSize).toUtf8();
+            QByteArray output = readLogFile(maxReadLogSize);
             if ( !m_ignoreError.isEmpty() )
                 output.replace(m_ignoreError, "[EXPECTED-IN-TEST] " + m_ignoreError);
             if ( flag == ReadAllStderr || !testStderr(output, flag) )
@@ -799,9 +801,9 @@ int count(const QStringList &items, const QString &pattern)
     return count;
 }
 
-QStringList splitLines(const QString &nativeText)
+QStringList splitLines(const QByteArray &nativeText)
 {
-    return nativeText.split(QRegularExpression("\r\n|\n|\r"));
+    return QString::fromUtf8(nativeText).split(QRegularExpression("\r\n|\n|\r"));
 }
 
 } // namespace
@@ -899,7 +901,7 @@ void Tests::commandVersion()
 
     const QString version = QString::fromUtf8(stdoutActual);
     // Version contains application name and version.
-    QVERIFY( version.contains(QRegularExpression("\\bCopyQ\\b.*" + QRegularExpression::escape(COPYQ_VERSION))) );
+    QVERIFY( version.contains(QRegularExpression("\\bCopyQ\\b.*" + QRegularExpression::escape(versionString))) );
     // Version contains Qt version.
     QVERIFY( version.contains(QRegularExpression("\\bQt:\\s+\\d")) );
 }
@@ -2284,6 +2286,22 @@ void Tests::classItemSelection()
     m_test->setIgnoreError(QByteArray());
 }
 
+void Tests::classItemSelectionGetCurrent()
+{
+    const auto tab1 = testTab(1);
+    const Args args = Args("tab") << tab1 << "separator" << ",";
+    RUN("setCurrentTab" << tab1, "");
+
+    RUN(args << "add" << "C" << "B" << "A", "");
+    RUN(args << "ItemSelection().current().str()", "ItemSelection(tab=\"\", rows=[])\n");
+
+    RUN("setCommands([{name: 'test', inMenu: true, shortcuts: ['Ctrl+F1'], cmd: 'copyq: add(ItemSelection().current().str())'}])", "");
+    RUN("keys" << "CTRL+F1", "");
+    WAIT_ON_OUTPUT(args << "read(0)", "ItemSelection(tab=\"" + tab1 + "\", rows=[0])");
+    RUN("keys" << "END" << "SHIFT+UP" << "CTRL+F1", "");
+    WAIT_ON_OUTPUT(args << "read(0)", "ItemSelection(tab=\"" + tab1 + "\", rows=[2,3])");
+}
+
 void Tests::calledWithInstance()
 {
     // These would fail with the old deprecated Qt Script module.
@@ -2457,14 +2475,17 @@ void Tests::searchItems()
 
 void Tests::searchItemsAndSelect()
 {
-    RUN("add" << "xx2" << "a" << "xx" << "c", "");
+    RUN("add" << "xx1" << "a" << "xx2" << "c" << "xx3" << "d", "");
     RUN("keys" << ":xx" << filterEditId, "");
-
-    RUN("keys" << filterEditId << "DOWN" << clipboardBrowserId, "");
     RUN("testSelected", QString(clipboardTabName) + " 1 1\n");
 
-    RUN("keys" << clipboardBrowserId << "DOWN" << clipboardBrowserId, "");
+    RUN("keys" << filterEditId << "DOWN" << filterEditId, "");
     RUN("testSelected", QString(clipboardTabName) + " 3 3\n");
+
+    RUN("keys" << filterEditId << "DOWN" << filterEditId, "");
+    RUN("testSelected", QString(clipboardTabName) + " 5 5\n");
+
+    RUN("keys" << filterEditId << "TAB" << clipboardBrowserId, "");
 }
 
 void Tests::searchRowNumber()
@@ -3806,6 +3827,33 @@ void Tests::displayCommand()
                 .toUtf8() );
 }
 
+void Tests::synchronizeInternalCommands()
+{
+    // Keep internal commands synced with the latest version
+    // but allow user to change some attributes.
+    const auto script = R"(
+        setCommands([
+            {
+                internalId: 'copyq_global_toggle',
+                enable: false,
+                icon: 'icon.png',
+                shortcuts: ['Ctrl+F1'],
+                globalShortcuts: ['Ctrl+F2'],
+                name: 'Old name',
+                cmd: 'Old command',
+            },
+        ])
+        )";
+    RUN(script, "");
+    RUN("commands()[0].internalId", "copyq_global_toggle\n");
+    RUN("commands()[0].enable", "false\n");
+    RUN("commands()[0].icon", "icon.png\n");
+    RUN("commands()[0].shortcuts", "Ctrl+F1\n");
+    RUN("commands()[0].globalShortcuts", "Ctrl+F2\n");
+    RUN("commands()[0].name", "Show/hide main window\n");
+    RUN("commands()[0].cmd", "copyq: toggle()\n");
+}
+
 void Tests::queryKeyboardModifiersCommand()
 {
     RUN("queryKeyboardModifiers()", "");
@@ -4190,11 +4238,6 @@ void Tests::startServerAndRunCommand()
 {
     RUN("--start-server" << "tab" << testTab(1) << "write('TEST');read(0)", "TEST");
 
-#ifdef Q_OS_MAC
-    SKIP("FIXME: For some reason the server is not started again on macOS");
-#elif defined(Q_OS_WIN)
-    SKIP("FIXME: For some reason the server is not stopped reliably on Windows");
-#endif
     TEST( m_test->stopServer() );
 
     QByteArray stdoutActual;
@@ -4212,6 +4255,10 @@ void Tests::startServerAndRunCommand()
     // client connection.
     QCOMPARE( run(Args("--start-server") << "exit();sleep(10000)", &stdoutActual, &stderrActual), 0 );
     QCOMPARE(stdoutActual, "Terminating server.\n");
+
+    // Try to start new client.
+    SleepTimer t(10000);
+    while ( run(Args("exit();sleep(10000)")) == 0 && t.sleep() ) {}
 }
 
 int Tests::run(
@@ -4225,7 +4272,7 @@ bool Tests::hasTab(const QString &tabName)
 {
     QByteArray out;
     run(Args("tab"), &out);
-    return splitLines(QString::fromUtf8(out)).contains(tabName);
+    return splitLines(out).contains(tabName);
 }
 
 int runTests(int argc, char *argv[])
@@ -4255,6 +4302,7 @@ int runTests(int argc, char *argv[])
     QCoreApplication::setOrganizationName(session);
     QCoreApplication::setApplicationName(session);
     Settings::canModifySettings = true;
+    initLogging();
 
     // Set higher default tests timeout.
     // The default value is 5 minutes (in Qt 5.15) which is not enough to run
@@ -4271,6 +4319,7 @@ int runTests(int argc, char *argv[])
     if (onlyPlugins.pattern().isEmpty()) {
         test->setupTest("CORE", QVariant());
         exitCode = test->runTests(&tc, argc, argv);
+        test->stopServer();
     }
 
     if (runPluginTests) {
